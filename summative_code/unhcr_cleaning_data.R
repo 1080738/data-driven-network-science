@@ -55,9 +55,37 @@ refugees = refugees_raw %>%
   filter (!orig == "PSE") %>%
   filter (!dest == "PSE")
 
+## obtaining expanded df with all possible combinations
+all_combinations <- expand.grid (orig = unique (refugees$orig),
+                                 dest = unique (refugees$dest),
+                                 year = unique (refugees$year)) %>%
+  
+  # adding dyad and triad identifiers
+  unite ("orig_dest_year", c(orig, dest, year), sep = "_", remove = F, na.rm = F) %>%
+  unite ("orig_dest", c(orig, dest), sep = "_", remove = F, na.rm = F)
+
+## merging the original dataframe with the expanded combinations
+refugees_exp <- all_combinations %>% left_join (refugees, by = c("orig", "dest", "year", "orig_dest_year", "orig_dest"))
+
+## replacing missing values with 0 for the refugee flows
+#refugees_exp[is.na(refugees_exp)] <- 0
+
+## filtering to only min 10 flows
+refugees_exp_filt = refugees_exp %>%
+  
+  # grouping
+  dplyr::group_by (orig_dest) %>%
+  
+  # filtering for min 10 flows
+  filter (sum (!is.na(forced_mig)) >= 15) %>% ungroup () %>%
+  
+  # filtering out PSE due to duplicate issues in the data
+  filter (!orig == "PSE") %>%
+  filter (!dest == "PSE")
+
 ## exporting -------------------------------------------------------------------
 
-write.csv (refugees, "unhcr_unimputed.csv", row.names = F)
+write.csv (refugees_exp_filt, "unhcr_unimputed.csv", row.names = F)
 
 
 
